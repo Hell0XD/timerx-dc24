@@ -15,12 +15,15 @@ local function save()
   if (time - startTime) > 20 * 1000 then
     table.insert(times, time - startTime)
     stop()
-    system.pSave("xTimer:times", times)
   end
 end
 
 local function start() 
+  if (time - startTime) > 60 * 1000 then
+    save()
+  end
   running = true
+
   startTime = system.getTimeCounter()
 end
 
@@ -36,6 +39,10 @@ local function onSavechange(value)
   saveSwitch = system.getInputsVal(value) ~= 0.0 and value or nil
   saveSwitchOn = system.getInputsVal(value)
   saveSwitchPrev = saveSwitchOn
+
+  system.pSave("xTimer:save", saveSwitch)
+  system.pSave("xTimer:saveOn", saveSwitchOn)
+  system.pSave("xTimer:savePrev", saveSwitchPrev)
 end
 
 local startSwitch 
@@ -46,6 +53,10 @@ local function onStartchange(value)
   startSwitch = system.getInputsVal(value) ~= 0.0 and value or nil
   startSwitchOn = system.getInputsVal(value)
   startSwitchPrev = startSwitchOn
+
+  system.pSave("xTimer:start", startSwitch)
+  system.pSave("xTimer:startOn", startSwitchOn)
+  system.pSave("xTimer:startPrev", startSwitchPrev)
 end
 
 
@@ -64,12 +75,22 @@ end
 local function keyPressed(key)
   if(key==KEY_1) then
     times = {}
+    system.messageBox("Times reset")
   end
 end
 
 local function printForm()
 end
 
+
+local function formatNumber(i)
+  local str = tostring(i)
+  if string.len(str) == 1 then
+    return "0"..str
+  end
+
+  return str
+end
 
 local function printTelemetry(width, height)   
   local tmp = time - startTime
@@ -81,9 +102,13 @@ local function printTelemetry(width, height)
   lcd.drawLine(0, 20, width, 20)
 
   for i, t in ipairs(times) do
-    lcd.drawText(2,5 + i * 15, i .. ". " .. formatTimeMs(t))
+    row = math.floor((i - 1) / 6)
+    col = ((i - 1) % 6)
+    lcd.drawText(35 + row * 150,25 + col * 20, formatNumber(i) .. ". " .. formatTimeMs(t), FONT_BIG)
   end
 end 
+
+
 
 local function loop()
   local nextValStart = system.getInputsVal(startSwitch)
@@ -110,8 +135,16 @@ local function loop()
   end
 end
 
+
 local function init()
-  times = system.pLoad("xTimer:times", {})
+  saveSwitch = system.pLoad("xTimer:save", nil)
+  saveSwitchOn = system.pLoad("xTimer:saveOn", nil)
+  saveSwitchPrev = system.pLoad("xTimer:savePrev", nil)
+
+  startSwitch = system.pLoad("xTimer:start", nil)
+  startSwitchOn = system.pLoad("xTimer:startOn", nil)
+  startSwitchPrev = system.pLoad("xTimer:startPrev", nil)
+
   system.registerForm(1,MENU_APPS,appName,initForm,keyPressed,printForm)
   system.registerTelemetry(2, "TimerX", 4, printTelemetry)
 end
